@@ -1,24 +1,23 @@
 package com.example.account;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import com.example.account.dto.AccountBalanceResponse;
+import com.example.account.service.AccountService;
 
 @RestController
 @RequestMapping("/api/v1/accounts")
 public class AccountController {
 
-    private final AccountService accountService;
-
-    public AccountController(AccountService accountService) {
-        this.accountService = accountService;
-    }
+    @Autowired
+    private AccountService accountService;
 
     @GetMapping("/{accountId}/balance")
-    public ResponseEntity<AccountBalanceResponse> getAccountBalance(@PathVariable String accountId) {
-        AccountBalanceResponse response = accountService.getAccountBalance(accountId);
+    public ResponseEntity<AccountBalanceResponse> getAccountBalance(
+            @PathVariable String accountId,
+            @RequestHeader("Authorization") String authorizationHeader) {
+        AccountBalanceResponse response = accountService.getAccountBalance(accountId, authorizationHeader);
         return ResponseEntity.ok(response);
     }
 }
