@@ -1,4 +1,4 @@
-package com.example.balance.dto;
+package com.example.account.dto;
 
 import java.time.LocalDateTime;
 
