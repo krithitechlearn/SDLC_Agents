@@ -1,22 +1,20 @@
-package com.example.account.config;
+package com.example.balance.config;
 
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 
 @Configuration
 @EnableWebSecurity
-public class SecurityConfig {
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
         http.csrf().disable()
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v1/accounts/**").authenticated()
-            )
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt());
-        return http.build();
+            .authorizeRequests()
+            .antMatchers("/api/v1/accounts/**").authenticated()
+            .and()
+            .oauth2ResourceServer().jwt();
     }
 }
