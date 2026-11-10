@@ -8,8 +8,8 @@ import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AccountServiceUnitTest {
@@ -22,7 +22,7 @@ class AccountServiceUnitTest {
     }
 
     @Test
-    void should_returnResponseWithDefaultBalanceAndCurrency() {
+    void should_returnDefaultBalanceAndCurrency_when_accountIdProvided() {
         // Arrange
         String accountId = "ACC-DEFAULT";
 
@@ -37,7 +37,7 @@ class AccountServiceUnitTest {
     }
 
     @Test
-    void should_handleNullInputsGracefully() {
+    void should_setNullAccountId_when_inputIsNull() {
         // Act
         AccountBalanceResponse response = accountService.getAccountBalance(null, null);
 
@@ -66,14 +66,12 @@ class AccountServiceUnitTest {
     }
 
     @Test
-    void should_returnNewResponseInstancePerInvocation() {
+    void should_createDistinctResponseInstances_perInvocation() {
         // Act
         AccountBalanceResponse first = accountService.getAccountBalance("ACC-1", "Bearer token");
         AccountBalanceResponse second = accountService.getAccountBalance("ACC-1", "Bearer token");
 
         // Assert
-        assertTrue(first != second, "Service should create a new DTO for each invocation");
-        assertTrue(first.getLastUpdated() == first.getLastUpdated());
-        assertTrue(second.getLastUpdated() == second.getLastUpdated());
+        assertNotSame(first, second, "Service should create a new DTO for each invocation");
     }
 }
