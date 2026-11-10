@@ -29,17 +29,18 @@ class AccountServiceAdditionalTest {
         LocalDateTime afterCall = LocalDateTime.now();
         assertNotNull(response.getLastUpdated(), "lastUpdated is required for audit traceability");
         assertTrue(!response.getLastUpdated().isBefore(beforeCall),
-                "Timestamp must not precede the invocation time");
+                "Timestamp must not precede the invocation start");
         assertTrue(!response.getLastUpdated().isAfter(afterCall),
-                "Timestamp should be captured during the same invocation window");
+                "Timestamp must be captured within the invocation window");
     }
 
     @Test
-    void should_preserveAccountIdEvenWhenBlank() {
-        AccountBalanceResponse response = accountService.getAccountBalance("", "Bearer anything");
+    void should_preserveProvidedAccountIdFormatting() {
+        String accountId = "  ACC-777  ";
 
-        assertEquals("", response.getAccountId(), "Service should echo the provided account identifier");
-        assertEquals("USD", response.getCurrency(), "Currency should remain the configured default");
+        AccountBalanceResponse response = accountService.getAccountBalance(accountId, "Bearer any");
+
+        assertEquals(accountId, response.getAccountId(), "Service must echo the provided identifier without trimming");
     }
 
     @Test
@@ -47,6 +48,14 @@ class AccountServiceAdditionalTest {
         AccountBalanceResponse first = accountService.getAccountBalance("ACC-001", "Bearer one");
         AccountBalanceResponse second = accountService.getAccountBalance("ACC-001", "Bearer one");
 
-        assertNotSame(first, second, "Each invocation must return a new DTO instance to avoid shared mutable state");
+        assertNotSame(first, second, "Each invocation should return a new DTO instance to avoid shared state");
+    }
+
+    @Test
+    void should_returnDefaultBalanceRegardlessOfAuthorizationHeader() {
+        AccountBalanceResponse response = accountService.getAccountBalance("ACC-DEFAULT", "malformed header");
+
+        assertEquals(1000.00, response.getCurrentBalance());
+        assertEquals("USD", response.getCurrency());
     }
 }

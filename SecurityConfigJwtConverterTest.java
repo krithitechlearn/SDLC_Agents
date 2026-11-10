@@ -23,8 +23,7 @@ class SecurityConfigJwtConverterTest {
     }
 
     @Test
-    void should_prefixScopeAuthoritiesWithScopeKeyword() throws Exception {
-        // Arrange
+    void should_prefixAuthoritiesWithScope_whenScopesProvided() throws Exception {
         JwtAuthenticationConverter converter = buildConverter();
         Jwt jwt = Jwt.withTokenValue("token")
                 .header("alg", "none")
@@ -33,10 +32,8 @@ class SecurityConfigJwtConverterTest {
                 .expiresAt(Instant.now().plusSeconds(60))
                 .build();
 
-        // Act
         AbstractAuthenticationToken authentication = (AbstractAuthenticationToken) converter.convert(jwt);
 
-        // Assert
         assertNotNull(authentication, "Authentication token must not be null");
         Set<String> authorities = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
@@ -47,7 +44,6 @@ class SecurityConfigJwtConverterTest {
 
     @Test
     void should_returnEmptyAuthorities_whenScopeClaimMissing() throws Exception {
-        // Arrange
         JwtAuthenticationConverter converter = buildConverter();
         Jwt jwt = Jwt.withTokenValue("token")
                 .header("alg", "none")
@@ -55,12 +51,10 @@ class SecurityConfigJwtConverterTest {
                 .expiresAt(Instant.now().plusSeconds(60))
                 .build();
 
-        // Act
         AbstractAuthenticationToken authentication = (AbstractAuthenticationToken) converter.convert(jwt);
 
-        // Assert
         assertNotNull(authentication);
         assertTrue(authentication.getAuthorities().isEmpty(),
-                "Missing scope claim should yield zero authorities");
+                "Missing scope claim should result in zero granted authorities");
     }
 }

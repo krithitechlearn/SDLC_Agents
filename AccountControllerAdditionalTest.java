@@ -13,10 +13,9 @@ import org.springframework.http.ResponseEntity;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.times;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -38,8 +37,8 @@ class AccountControllerAdditionalTest {
         ResponseEntity<AccountBalanceResponse> response =
                 accountController.getAccountBalance(accountId, authorizationHeader);
 
-        assertEquals(HttpStatus.OK, response.getStatusCode(), "Controller should keep HTTP 200 on successful service call");
-        assertNull(response.getBody(), "Body must mirror the service result even when it is null");
+        assertEquals(HttpStatus.OK, response.getStatusCode(), "Controller must keep HTTP 200 for successful flow");
+        assertNull(response.getBody(), "Body should mirror the service result even when null");
         verify(accountService).getAccountBalance(accountId, authorizationHeader);
     }
 
@@ -47,8 +46,8 @@ class AccountControllerAdditionalTest {
     void should_forwardArgumentsVerbatim_when_valuesContainWhitespace() {
         String accountId = "  ACC-123  ";
         String authorizationHeader = "Bearer    spaced";
-        AccountBalanceResponse response = new AccountBalanceResponse();
-        when(accountService.getAccountBalance(accountId, authorizationHeader)).thenReturn(response);
+        AccountBalanceResponse serviceResponse = new AccountBalanceResponse();
+        when(accountService.getAccountBalance(accountId, authorizationHeader)).thenReturn(serviceResponse);
 
         accountController.getAccountBalance(accountId, authorizationHeader);
 
@@ -56,19 +55,31 @@ class AccountControllerAdditionalTest {
         ArgumentCaptor<String> headerCaptor = ArgumentCaptor.forClass(String.class);
         verify(accountService).getAccountBalance(accountCaptor.capture(), headerCaptor.capture());
 
-        assertSame(accountId, accountCaptor.getValue(), "Account identifier must not be trimmed or altered");
-        assertSame(authorizationHeader, headerCaptor.getValue(), "Authorization header should be forwarded verbatim");
+        assertEquals(accountId, accountCaptor.getValue(), "Account identifier must not be trimmed or mutated");
+        assertEquals(authorizationHeader, headerCaptor.getValue(), "Authorization header must be forwarded verbatim");
     }
 
     @Test
-    void should_propagateIllegalArgumentException_when_serviceRejectsRequest() {
-        when(accountService.getAccountBalance(anyString(), anyString()))
-                .thenThrow(new IllegalArgumentException("Unauthorized holder"));
+    void should_forwardNullAuthorizationHeader_when_headerMissing() {
+        String accountId = "ACC-NO-HDR";
+        when(accountService.getAccountBalance(eq(accountId), isNull())).thenReturn(new AccountBalanceResponse());
 
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> accountController.getAccountBalance("ACC-401", "Bearer expired"));
+        accountController.getAccountBalance(accountId, null);
+
+        verify(accountService).getAccountBalance(eq(accountId), isNull());
+    }
+
+    @Test
+    void should_propagateRuntimeException_when_serviceThrows() {
+        String accountId = "ACC-ERR";
+        String authorizationHeader = "Bearer expired";
+        when(accountService.getAccountBalance(accountId, authorizationHeader))
+                .thenThrow(new RuntimeException("Unauthorized holder"));
+
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> accountController.getAccountBalance(accountId, authorizationHeader));
 
         assertEquals("Unauthorized holder", exception.getMessage());
-        verify(accountService, times(1)).getAccountBalance("ACC-401", "Bearer expired");
+        verify(accountService).getAccountBalance(accountId, authorizationHeader);
     }
 }
