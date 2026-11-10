@@ -11,13 +11,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
-import java.time.LocalDateTime;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -31,58 +30,45 @@ class AccountControllerAdditionalTest {
     private AccountController accountController;
 
     @Test
-    void should_returnOkResponseWithBody_when_serviceReturnsData() {
-        // Arrange
-        String accountId = "ACC100";
-        String authorizationHeader = "Bearer token-123";
-        AccountBalanceResponse balanceResponse = new AccountBalanceResponse();
-        balanceResponse.setAccountId(accountId);
-        balanceResponse.setCurrency("USD");
-        balanceResponse.setCurrentBalance(512.42);
-        balanceResponse.setLastUpdated(LocalDateTime.now());
+    void should_returnOkWithNullBody_when_serviceReturnsNull() {
+        String accountId = "ACC-NULL";
+        String authorizationHeader = "Bearer token";
+        when(accountService.getAccountBalance(accountId, authorizationHeader)).thenReturn(null);
 
-        when(accountService.getAccountBalance(accountId, authorizationHeader)).thenReturn(balanceResponse);
-
-        // Act
-        ResponseEntity<AccountBalanceResponse> actual =
+        ResponseEntity<AccountBalanceResponse> response =
                 accountController.getAccountBalance(accountId, authorizationHeader);
 
-        // Assert
-        assertEquals(HttpStatus.OK, actual.getStatusCode());
-        assertEquals(balanceResponse.getAccountId(), actual.getBody().getAccountId());
-        assertEquals(balanceResponse.getCurrentBalance(), actual.getBody().getCurrentBalance());
+        assertEquals(HttpStatus.OK, response.getStatusCode(), "Controller should keep HTTP 200 on successful service call");
+        assertNull(response.getBody(), "Body must mirror the service result even when it is null");
         verify(accountService).getAccountBalance(accountId, authorizationHeader);
     }
 
     @Test
-    void should_forwardNullAuthorizationHeader_when_headerMissing() {
-        // Arrange
-        String accountId = "ACC-NO-HDR";
-        when(accountService.getAccountBalance(eq(accountId), isNull()))
-                .thenReturn(new AccountBalanceResponse());
+    void should_forwardArgumentsVerbatim_when_valuesContainWhitespace() {
+        String accountId = "  ACC-123  ";
+        String authorizationHeader = "Bearer    spaced";
+        AccountBalanceResponse response = new AccountBalanceResponse();
+        when(accountService.getAccountBalance(accountId, authorizationHeader)).thenReturn(response);
 
-        // Act
-        accountController.getAccountBalance(accountId, null);
+        accountController.getAccountBalance(accountId, authorizationHeader);
 
-        // Assert
+        ArgumentCaptor<String> accountCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> headerCaptor = ArgumentCaptor.forClass(String.class);
-        verify(accountService).getAccountBalance(eq(accountId), headerCaptor.capture());
-        assertNull(headerCaptor.getValue(), "Controller must pass the header value verbatim (including null)");
+        verify(accountService).getAccountBalance(accountCaptor.capture(), headerCaptor.capture());
+
+        assertSame(accountId, accountCaptor.getValue(), "Account identifier must not be trimmed or altered");
+        assertSame(authorizationHeader, headerCaptor.getValue(), "Authorization header should be forwarded verbatim");
     }
 
     @Test
-    void should_propagateRuntimeException_when_serviceThrows() {
-        // Arrange
-        String accountId = "ACC-ERR";
-        String authorizationHeader = "Bearer expired";
-        when(accountService.getAccountBalance(accountId, authorizationHeader))
-                .thenThrow(new RuntimeException("Unauthorized holder"));
+    void should_propagateIllegalArgumentException_when_serviceRejectsRequest() {
+        when(accountService.getAccountBalance(anyString(), anyString()))
+                .thenThrow(new IllegalArgumentException("Unauthorized holder"));
 
-        // Act & Assert
-        RuntimeException exception = assertThrows(RuntimeException.class,
-                () -> accountController.getAccountBalance(accountId, authorizationHeader));
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> accountController.getAccountBalance("ACC-401", "Bearer expired"));
 
         assertEquals("Unauthorized holder", exception.getMessage());
-        verify(accountService).getAccountBalance(accountId, authorizationHeader);
+        verify(accountService, times(1)).getAccountBalance("ACC-401", "Bearer expired");
     }
 }
